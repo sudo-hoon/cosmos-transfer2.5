@@ -103,16 +103,7 @@ torchrun ... \
 - 2~5 문장 정도의 길이
 - 도메인 특화 용어 포함 (예: 의료 도메인이면 의료 용어)
 
-### 3.3 캡션 대안: txt 파일
-
-JSON 대신 `.txt` 파일도 지원한다 (fallback):
-
-```
-# captions/scene001.txt
-A bustling city street at sunset...
-```
-
-### 3.4 캡션이 없는 경우
+### 3.3 캡션이 없는 경우
 
 캡션 파일이 없으면 기본값 `"a video"`가 사용된다. 이는 비권장이지만 동작은 한다.
 

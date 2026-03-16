@@ -227,7 +227,7 @@ else:
 | 구간 | 내용 |
 |------|------|
 | `text_guardrail` | 텍스트 가드레일 검사 |
-| `get_text_embeddings` | T5/Reason1 텍스트 인코딩 |
+| `get_text_embeddings` | Qwen2.5-VL 7B 텍스트 인코딩 |
 | `preprocessing` | 이미지 컨텍스트, 컨트롤 입력 처리 |
 | `generate_chunk` | 청크당 생성 (인코딩 + 디노이징 + 디코딩) |
 | `postprocessing` | 청크 결합, 해상도 복원 |
@@ -259,7 +259,7 @@ torch.cuda.empty_cache()
     ▼
 input_frames: (C=3, T, H=704, W=1280), uint8 [0,255]
     │
-    ├──── 텍스트: prompt → T5/Reason1 → (1, 512, D), bfloat16
+    ├──── 텍스트: prompt → Qwen2.5-VL 7B → (1, seq_len, 100352→1024), bfloat16
     ├──── 이미지 컨텍스트: image → SigLIP2 → (1, 256, 1152), bfloat16
     ├──── 컨트롤: depth/seg → 사전계산 or 모델 → (C, T, H, W), uint8
     │                edge/vis → augmentor → (1, 3, T, H, W), uint8

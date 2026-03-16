@@ -19,8 +19,8 @@ ControlVideo2WorldModel (vid2vid_model_control_vace_rectified_flow.py)
     │       - Patch Embedder, Time Embedder
     │       - Cross-attention (text + image context)
     │
-    ├── text_encoder: T5 또는 Reason1
-    │       - 텍스트 → 임베딩
+    ├── text_encoder: Qwen2.5-VL 7B (Reason1.1)
+    │       - 텍스트 → 임베딩 (28 layers FULL_CONCAT → 100,352 dim)
     │
     ├── conditioner: 조건 관리자
     │       - condition/uncondition 쌍 생성 (CFG용)

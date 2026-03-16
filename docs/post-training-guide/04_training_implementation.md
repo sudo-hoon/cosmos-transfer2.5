@@ -169,7 +169,7 @@ def forward(self, data_batch):
         text_embeddings = self.text_encoder.compute_text_embeddings_online(
             data_batch, "ai_caption"
         )
-        data_batch["t5_text_embeddings"] = text_embeddings
+        data_batch["t5_text_embeddings"] = text_embeddings  # 키 이름은 레거시, 실제는 Qwen2.5-VL
 
     # ===== Phase 3: Latent 인코딩 =====
     raw_state, x0, condition = self.get_data_and_condition(data_batch)
@@ -220,7 +220,7 @@ control_latent = self.encode(data_batch["control_input_edge"])
 
 # 4. Condition 객체 구성
 condition = ControlVideo2WorldCondition(
-    t5_text_embeddings=text_emb,
+    t5_text_embeddings=text_emb,  # 키 이름은 레거시, 실제는 Qwen2.5-VL 임베딩
     condition_video_input_mask=condition_mask,
     latent_control_input=control_latent,
     control_weight=[1.0],

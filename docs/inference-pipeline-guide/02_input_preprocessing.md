@@ -72,39 +72,32 @@ resized_video[i] = cv2.resize(frame, (w, h), interpolation=cv2.INTER_AREA)
 
 > 파일: `transfer2/inference/utils.py` → `get_t5_from_prompt()`
 
-### 2.1 텍스트 인코더 선택
+### 2.1 텍스트 인코더
 
-모델의 `text_encoder_class`에 따라 2가지 경로로 나뉜다:
+Cosmos Transfer 2.5는 **Qwen2.5-VL 7B (Reason1.1)** 텍스트 인코더를 사용한다.
 
-| 인코더 | 설명 | 임베딩 크기 |
-|--------|------|-------------|
-| `"T5"` | Google T5 기반 | 최대 512 토큰 x 4096 dim |
-| `"reason1_*"` | NVIDIA Cosmos Reason1 VLM | 모델 의존적 |
+- 28개 hidden layer의 출력을 FULL_CONCAT하여 100,352 dim 임베딩 생성
+- DiT 내부에서 `crossattn_proj` (Linear 100,352→1,024)로 프로젝션
+- 추론 시에는 `compute_text_embeddings_online()`으로 on-the-fly 인코딩
 
-### 2.2 T5 텍스트 임베딩 계산
+> **참고**: 코드에서 텍스트 임베딩 키 이름이 `t5_text_embeddings`로 되어 있지만, 이는 레거시 네이밍이다. 실제로는 Qwen2.5-VL 7B 인코더가 사용된다.
+
+### 2.2 텍스트 임베딩 계산
 
 ```python
-def get_t5_from_prompt(prompt, text_encoder_class="T5", cache_dir=None):
-    if isinstance(prompt, str):
-        # 온라인 계산: prompt → T5 → embedding
-        t5_embed = get_text_embedding(prompt, text_encoder_class="T5")
-        # shape: (512, D), dtype=bfloat16, device=cuda
-    elif isinstance(prompt, torch.Tensor):
-        # 사전 계산된 임베딩
-        t5_embed = prompt.unsqueeze(0)  # (1, seq_len, D)
-    elif isinstance(prompt, list):
-        # 청크별 프롬프트: 각각 독립 계산
-        return [get_t5_from_prompt(p) for p in prompt]
-    elif isinstance(prompt, dict):
-        # 프레임 인덱스별 프롬프트 (dict 형태)
-        return get_t5_from_prompt(list(prompt.values()))
+# 추론 시 텍스트 임베딩 계산 — Qwen2.5-VL 7B (reason1p1_7B) 온라인 인코딩
+text_embeddings = model.text_encoder.compute_text_embeddings_online(
+    {"ai_caption": [prompt], "images": None}, input_caption_key="ai_caption"
+)
+# shape: (1, seq_len, 100352), bfloat16
+# 이후 DiT 내부에서 crossattn_proj(100352 → 1024)로 프로젝션
 ```
 
-**임베딩 후처리:**
-- T5 임베딩은 **최대 512 토큰**으로 제한
-- 512보다 작으면 **제로 패딩**
-- 512보다 크면 **잘라냄 (truncate)**
-- dtype: `bfloat16`, device: `cuda`
+프롬프트는 여러 형태로 전달 가능하다:
+- `str`: 단일 프롬프트 → 임베딩 계산
+- `torch.Tensor`: 사전 계산된 임베딩 직접 사용
+- `list[str]`: 청크별 프롬프트 → 각각 독립 계산
+- `dict[int, str]`: 프레임 인덱스별 프롬프트
 
 ### 2.3 네거티브 프롬프트
 
@@ -114,7 +107,7 @@ def get_t5_from_prompt(prompt, text_encoder_class="T5", cache_dir=None):
 DEFAULT_NEGATIVE_PROMPT = "The video captures a game playing, with bad crappy graphics..."
 ```
 
-이 임베딩은 `data_batch["neg_t5_text_embeddings"]`로 전달되어 CFG의 unconditioned branch에 사용된다.
+이 임베딩은 `data_batch["neg_t5_text_embeddings"]`로 전달되어 CFG의 unconditioned branch에 사용된다 (키 이름은 레거시).
 
 ### 2.4 청크별 프롬프트
 
@@ -319,7 +312,7 @@ data_batch = {
     # 기본 입력
     "video": prev_output,                    # (1, 3, T, H, W), uint8 → 이전 청크 출력
     "input_video": cur_input_frames,         # (C, T, H, W), uint8 → 현재 청크 원본 영상
-    "t5_text_embeddings": text_embedding,    # (1, 512, D), bfloat16
+    "t5_text_embeddings": text_embedding,    # (1, seq_len, D), bfloat16 (키 이름은 레거시, 실제는 Qwen2.5-VL)
     "fps": torch.randint(16, 32, (1,)),      # (1,), 랜덤 FPS
     "padding_mask": torch.zeros(1, 1, H, W), # (1, 1, H, W)
     "num_conditional_frames": 0 or 1,        # 조건 프레임 수 (latent 공간 기준)
@@ -327,7 +320,7 @@ data_batch = {
 
     # 선택적 입력
     "image_context": image_context,                 # (1, C, H, W), bfloat16
-    "neg_t5_text_embeddings": neg_text_embeddings,  # (1, 512, D), bfloat16
+    "neg_t5_text_embeddings": neg_text_embeddings,  # (1, seq_len, D), bfloat16 (키 이름은 레거시)
 
     # 컨트롤 입력 (augmentor 적용 후)
     "control_input_edge": ...,               # (1, 3, T, H, W), uint8
