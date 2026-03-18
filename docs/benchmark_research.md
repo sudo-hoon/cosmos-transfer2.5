@@ -137,6 +137,20 @@ NVIDIA PhysX 및 Isaac Sim을 사용한 물리 정합성 평가:
 - 비디오 미적 품질과 기술적 품질을 분리하여 평가
 - NVIDIA Cosmos 논문에서 Quality Score로 사용됨
 
+### 2.9 JEDi (JEPA Embedding Distance) — FVD 대체 후보 (ICLR 2025)
+
+- V-JEPA features + MMD with polynomial kernel 사용
+- FVD 대비 **16%의 샘플만으로** 안정적 값 도달
+- 인간 평가와 **34% 더 높은 정합도**
+- FVD의 이미지 품질 편향 문제를 해결
+- 출처: [Beyond FVD (arXiv:2410.05203)](https://arxiv.org/abs/2410.05203)
+
+### 2.10 FVMD (Fréchet Video Motion Distance)
+
+- 물리 기반 모션 특징(키포인트 추적 기반 velocity/acceleration) 사용
+- FVD보다 **모션 아티팩트에 높은 민감도**
+- 출처: [FVMD](https://qiyan98.github.io/blog/2024/fvmd-1/)
+
 ---
 
 ## 3. Temporal Consistency 메트릭
@@ -204,10 +218,13 @@ NVIDIA PhysX 및 Isaac Sim을 사용한 물리 정합성 평가:
 ### 4.1 MEt3R (Measuring Multi-View Consistency in Generated Images)
 
 - **CVPR 2025** 발표 (Max Planck Institute)
-- Feature space에서 multi-view 일관성을 측정
-- TSED의 한계를 보완: 부분적 비일관성도 감지
-- 해상도 변화에 강건 (feature space 측정이므로)
-- 에피폴라 제약 조건 만족 여부를 넘어서 실제 3D 일관성을 측정
+- DUSt3R을 사용한 dense 3D reconstruction으로 이미지 쌍에서 feature를 warping하고 유사도 점수 계산
+- **Pose-free**: Ground-truth 카메라 포즈 불필요 (TSED/SED와 달리)
+- View-dependent 효과에 불변
+- 부분적 비일관성도 감지 (TSED의 한계 보완)
+- 해상도 변화에 강건 (feature space 측정)
+- 인간의 3D 일관성 지각과 높은 상관관계
+- GitHub: [mohammadasim98/met3r](https://github.com/mohammadasim98/met3r)
 
 ### 4.2 TSED (Transferred Sampson Epipolar Distance)
 
@@ -289,12 +306,43 @@ NVIDIA PhysX 및 Isaac Sim을 사용한 물리 정합성 평가:
 - 인간 판단과 정합
 - VBench-2.0, EvalCrafter, LOVE 벤치마크에서 검증
 
-### 5.3 PAIBench (Physical AI Benchmark) — NVIDIA
+### 5.3 WorldScore (ICCV 2025) ⭐ 월드 생성 전용 통합 벤치마크
+
+- **최초의 월드 생성 전용 통합 벤치마크**
+- 20개 모델, 3,000개 테스트 예제 (static/dynamic, indoor/outdoor, photorealistic/stylized)
+- 3축 10개 메트릭으로 분해:
+  - **Controllability**: 카메라 제어성(회전/이동 오류), 콘텐츠 정합
+  - **Quality**: 3D 일관성(기하학적 일관성), 광도 일관성(텍스처/색상 안정성), 스타일 일관성(Gram matrix)
+  - **Dynamics**: 모션 정확도, 모션 부드러움, 모션 크기
+- 집계 점수: WorldScore-Static, WorldScore-Dynamic
+- 출처: [WorldScore](https://haoyi-duan.github.io/WorldScore/)
+
+### 5.4 WorldBench (2026)
+
+- 월드 기초 모델의 **물리 이해 진단 평가**
+- 2단계 테스트:
+  1. **직관적 물리 이해**: 객체 영속성, 스케일/원근
+  2. **저수준 물리 상수**: 마찰 계수, 유체 점성
+- 주요 발견: 모든 SOTA 모델이 실제 시뮬레이션에 필요한 물리적 일관성 부족
+- 출처: [WorldBench](https://arxiv.org/html/2601.21282)
+
+### 5.5 PhyGenBench / PhyWorldBench (물리 평가)
+
+- **PhyGenBench**: 비디오 생성의 물리적 상식 평가. VideoScore, DEVIL 등의 메트릭이 물리 위반(예: 달걀이 고무공처럼 튕김)을 감지 못하는 한계 발견
+- **PhyWorldBench** (2025): T2V 모델의 물리적 사실성 종합 평가
+- 출처: [PhyGenBench](https://arxiv.org/html/2410.05363v1), [PhyWorldBench](https://arxiv.org/html/2507.13428v1)
+
+### 5.6 PAIBench (Physical AI Benchmark) — NVIDIA
 
 - NVIDIA의 자체 Physical AI 벤치마크
 - PAIBench-Predict (Text2World, Image2World)
 - PAIBench-Transfer (control signal 충실도)
 - Cosmos-Predict2.5-2B Text2World: **0.768**, Image2World: **0.810**
+
+### 5.7 MVGBench — Multi-View Generation 3D Self-Consistency
+
+- 생성된 multi-view에서 disjoint된 뷰의 3D 재구성을 비교 (ground truth 불필요)
+- 출처: [MVGBench](https://arxiv.org/html/2507.00006v1)
 
 ---
 
@@ -333,10 +381,21 @@ NVIDIA PhysX 및 Isaac Sim을 사용한 물리 정합성 평가:
   - Camera Motion Speed 보정
 - Human Temporal Consistency: 의복 일관성 등 VQA 기반 평가
 
-### 6.4 EvalCrafter
+### 6.4 EvalCrafter (CVPR 2024)
 
-- 비디오 생성 모델 평가 프레임워크
-- WCS 검증에 사용됨
+- 700개 다양한 프롬프트, 4가지 측면의 **17개 객관적 메트릭**:
+  - Visual Quality, Text-Video Alignment, Motion Quality, Temporal Consistency
+- **Warping Error**를 temporal consistency 평가에 사용
+- WCS 검증에도 사용됨
+
+### 6.5 DEVIL (NeurIPS 2024)
+
+- Dynamics 중심 평가, ~800개 프롬프트
+- 3가지 메트릭 유형:
+  1. **Dynamics Range**: 변동 범위
+  2. **Dynamics Controllability**: 프롬프트 반응성
+  3. **Dynamics-based Quality**: 다양한 dynamics 수준에서의 시각적 품질
+- 인간 평가와 **>90% Pearson 상관관계**
 
 ---
 
@@ -417,10 +476,11 @@ Cosmos Transfer 2.5 출력을 포괄적으로 평가하기 위한 권장 메트�
 
 | 메트릭 | 측정 대상 | 도구/라이브러리 |
 |--------|----------|---------------|
-| FVD | 시각+시간 품질 | `torch-fidelity`, custom I3D |
+| FVD (또는 JEDi) | 시각+시간 품질 | `torch-fidelity`, custom I3D / V-JEPA |
 | FID | 프레임 품질 | `torch-fidelity`, `clean-fid` |
 | LPIPS | Perceptual similarity | `lpips` 패키지 |
 | SSIM / PSNR | 픽셀 수준 품질 | `skimage`, `torchmetrics` |
+| FVMD | 모션 품질 | 키포인트 추적 기반 custom |
 
 ### Tier 2: Temporal Consistency (필수)
 
@@ -445,10 +505,12 @@ Cosmos Transfer 2.5 출력을 포괄적으로 평가하기 위한 권장 메트�
 
 | 메트릭 | 측정 대상 | 도구/라이브러리 |
 |--------|----------|---------------|
+| WorldScore | 월드 생성 통합 평가 (10개 메트릭) | WorldScore 프레임워크 |
 | WorldModelBench | 물리 법칙 준수 | WorldModelBench 프레임워크 |
 | PAIBench-Transfer | 제어 신호 충실도 | NVIDIA 자체 |
 | RNDS | 장기 품질 저하 | DOVER 기반 custom |
 | VBench-2.0 Physics | 물리적 사실성 | `vbench` 패키지 |
+| PhyGenBench / PhyWorldBench | 물리 상식 위반 감지 | 전용 프레임워크 |
 
 ### Tier 5: Downstream Task (응용 평가 시)
 
@@ -469,14 +531,38 @@ Cosmos Transfer 2.5 출력을 포괄적으로 평가하기 위한 권장 메트�
 |----------|--------|
 | **전체 품질** | PAI-Bench Quality Score, PAI-Bench Domain Score |
 | **이미지 품질** | FID, PSNR, SSIM, LPIPS |
-| **비디오 품질** | FVD, RNDS, DOVER |
+| **비디오 품질** | FVD, JEDi, FVMD, RNDS, DOVER |
 | **Temporal Consistency** | RNDS, VideoAlign (motion quality), Error Accumulation Curves, VBench Temporal Flickering/Motion Smoothness/Subject Consistency, WCS, Warping Error |
-| **Multi-View / 3D Consistency** | MEt3R, Sampson Error, Reprojection Error, Pose Estimation Success Rate, PSNR/SSIM/LPIPS (view synthesis), MVCS, 3DCS |
-| **Physics Alignment** | PhysX/Isaac Sim 시나리오 (gravity, collision, torque, inertia), WorldModelBench Physical Adherence |
+| **Multi-View / 3D Consistency** | MEt3R, Sampson Error, Reprojection Error, Pose Estimation Success Rate, PSNR/SSIM/LPIPS (view synthesis), MVCS, 3DCS, MVGBench |
+| **Physics Alignment** | PhysX/Isaac Sim 시나리오 (gravity, collision, torque, inertia), WorldModelBench Physical Adherence, PhyGenBench, PhyWorldBench |
 | **Control 충실도** | SSIM (blur), F1 (edge), si-RMSE (depth), mIoU (seg) |
 | **Reward Model** | VideoAlign (text alignment, motion quality, visual quality) |
 | **Downstream Tasks** | BEVFormer mAP/NDS, LATR F1/mIoU, Robot Policy Success Rate, DreamGen, Human Preference |
-| **World Model 전용** | WorldModelBench, WCS, PAI-Bench Domain Score, VBench-2.0 Physics/Commonsense |
+| **World Model 전용** | WorldScore, WorldModelBench, WorldBench, WCS, PAI-Bench Domain Score, VBench-2.0 Physics/Commonsense |
+
+---
+
+## 11. 주요 벤치마크 데이터셋
+
+| 데이터셋 | 설명 | 주요 용도 |
+|---------|------|----------|
+| **UCF-101** | 13,320 YouTube 비디오, 101개 액션 카테고리 | FVD, IS 기반 비디오 생성 품질 |
+| **MSR-VTT** | 10,000 비디오 클립 + 200K 캡션 | T2V 생성 및 검색 |
+| **Kinetics-400/600/700** | 대규모 액션 인식 데이터셋 | I3D (FVD용) 특징 추출기 훈련 |
+| **ActivityNet** | 20K 비디오, 200개 액티비티 클래스 | 비디오 이해 및 생성 |
+| **WebVid-2M/10M** | 웹 스크래핑 비디오-텍스트 쌍 | T2V 모델 훈련/평가 |
+| **DMLab / Minecraft / Habitat** | 시뮬레이션 3D 환경 | 장기 시간 의존성 평가 |
+
+---
+
+## 12. 핵심 트렌드 및 권장사항
+
+1. **WorldScore**가 현재 월드 생성 모델 전용으로 가장 포괄적인 벤치마크 (ICCV 2025)
+2. **VBench / VBench-2.0**가 비디오 생성 품질 평가의 표준 (16+ 차원)
+3. **FVD**가 가장 널리 쓰이지만 **JEDi** (ICLR 2025)와 **FVMD**가 대체 후보로 부상
+4. **Warping Error**가 temporal consistency의 표준; **WCS**가 통합 대안으로 부상
+5. **MEt3R**이 GT 포즈 없이 사용 가능한 최고의 multi-view 3D 일관성 메트릭 (CVPR 2025)
+6. 표면적 품질 → **물리 인식(physics-aware)** 및 **월드 일관성** 평가로 빠르게 전환 중
 
 ---
 
@@ -499,3 +585,15 @@ Cosmos Transfer 2.5 출력을 포괄적으로 평가하기 위한 권장 메트�
 - [Epipolar Geometry Improves Video Generation](https://arxiv.org/pdf/2510.21615)
 - [PRISM — Pose-aware NVS Evaluation](https://arxiv.org/html/2511.12675)
 - [SV4D 2.0 — Multi-View Video Diffusion](https://openaccess.thecvf.com/content/ICCV2025/papers/Yao_SV4D_2.0_Enhancing_Spatio-Temporal_Consistency_in_Multi-View_Video_Diffusion_for_ICCV_2025_paper.pdf)
+- [WorldScore (ICCV 2025)](https://haoyi-duan.github.io/WorldScore/)
+- [WorldBench (2026)](https://arxiv.org/html/2601.21282)
+- [PhyGenBench](https://arxiv.org/html/2410.05363v1)
+- [PhyWorldBench](https://arxiv.org/html/2507.13428v1)
+- [MVGBench](https://arxiv.org/html/2507.00006v1)
+- [JEDi / Beyond FVD (ICLR 2025)](https://arxiv.org/abs/2410.05203)
+- [FVMD](https://qiyan98.github.io/blog/2024/fvmd-1/)
+- [DEVIL (NeurIPS 2024)](https://arxiv.org/html/2407.01094v1)
+- [EvalCrafter (CVPR 2024)](https://openaccess.thecvf.com/content/CVPR2024/papers/Liu_EvalCrafter_Benchmarking_and_Evaluating_Large_Video_Generation_Models_CVPR_2024_paper.pdf)
+- [MEt3R GitHub](https://github.com/mohammadasim98/met3r)
+- [Warping Error Reference (ECCV 2018)](https://github.com/phoenix104104/fast_blind_video_consistency)
+- [Awesome Evaluation of Visual Generation](https://github.com/ziqihuangg/Awesome-Evaluation-of-Visual-Generation)
