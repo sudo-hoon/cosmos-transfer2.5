@@ -423,7 +423,33 @@ Cosmos Reason 모델을 사용한 VQA 기반 품질 평가:
 - Success rate threshold (기본 80%)
 - 11개 테스트 설정 YAML (multiview, robot_seg, robot_depth, car_seg, car_edge 등)
 
-### 7.3 Cosmos Reason1 Benchmark
+### 7.3 Cosmos Cookbook 평가 메트릭
+
+| 도메인 | 메트릭 | 결과 예시 |
+|--------|--------|----------|
+| **로봇 정책** | Task Success Rate | LIBERO 98.33%, RoboCasa 71.1%, ALOHA 93.6% |
+| **AV Video Captioning** | BLEU, MCQ VQA Accuracy, LingoQA | BLEU +10.6%, LingoQA +13.8pp |
+| **물리적 그럴듯함** | Accuracy, Correlation (VideoPhy-2 데이터셋) | Cosmos Reason1 기반 |
+| **에고센트릭 추론** | VQA Accuracy | Qwen3-VL-8B 대비 비교 |
+
+### 7.4 평가 데이터셋
+
+| 데이터셋 | 설명 |
+|---------|------|
+| **TransferBench** | 600개 예제 (200 로봇 AgiBot World, 200 드라이빙 OpenDV, 200 에고센트릭 Ego-Exo-4D) |
+| **RDS-HQ** | 360시간 AV 데이터셋, 65K개 20초 클립 |
+| **Robotics Sim** | NVIDIA Omniverse/Isaac Lab의 120개 시뮬레이션 비디오 |
+
+### 7.5 Control Signal 계산 도구
+
+| 모달리티 | 계산 도구 |
+|---------|----------|
+| Depth | DepthAnythingV2 |
+| Segmentation | GroundingDINO + SAM2 |
+| Edge | Canny edge detector |
+| Blur | Bilateral blur |
+
+### 7.6 Cosmos Reason1 Benchmark
 
 - 공간-시간 이해 + 물리학 추론 평가
 - 로봇(RoboVQA, BridgeDataV2, RobFail), 자율주행, 인간 시연(HoloAssist) 도메인
@@ -555,7 +581,22 @@ Cosmos Transfer 2.5 출력을 포괄적으로 평가하기 위한 권장 메트�
 
 ---
 
-## 12. 핵심 트렌드 및 권장사항
+## 12. NVIDIA의 평가 철학 (핵심 인사이트)
+
+NVIDIA는 Cosmos 모델 평가에서 전통적인 unconditional 생성 메트릭(FVD, FID)에 **주로 의존하지 않는다**. 대신 다음을 중심으로 평가:
+
+1. **Domain-specific downstream task 성능**: 객체 탐지, 차선 탐지, 로봇 태스크 성공률
+2. **Control signal 충실도**: 모달리티별 SSIM, F1, si-RMSE, mIoU
+3. **VLM 기반 의미론적 평가**: Cosmos Reason 모델을 자동 판정자로 활용 (물리적 그럴듯함, 환경 정확성, 속성 검증)
+4. **VQA 기반 키워드 검증**: 자동 Q&A + success rate threshold
+5. **장기 품질 메트릭**: RNDS로 시간에 따른 에러 누적 추적
+6. **지각적 다양성**: 생성 변형 간 LPIPS
+
+> 이는 월드 모델의 평가가 단순 시각 품질을 넘어 **물리적 충실도 + downstream 실용성**으로 이동하고 있음을 반영한다.
+
+---
+
+## 13. 핵심 트렌드 및 권장사항
 
 1. **WorldScore**가 현재 월드 생성 모델 전용으로 가장 포괄적인 벤치마크 (ICCV 2025)
 2. **VBench / VBench-2.0**가 비디오 생성 품질 평가의 표준 (16+ 차원)
@@ -563,6 +604,7 @@ Cosmos Transfer 2.5 출력을 포괄적으로 평가하기 위한 권장 메트�
 4. **Warping Error**가 temporal consistency의 표준; **WCS**가 통합 대안으로 부상
 5. **MEt3R**이 GT 포즈 없이 사용 가능한 최고의 multi-view 3D 일관성 메트릭 (CVPR 2025)
 6. 표면적 품질 → **물리 인식(physics-aware)** 및 **월드 일관성** 평가로 빠르게 전환 중
+7. NVIDIA는 FVD/FID보다 **downstream task 성능 + VLM 기반 자동 평가**에 집중
 
 ---
 
