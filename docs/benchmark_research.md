@@ -15,9 +15,23 @@
 
 ## 1. NVIDIA Cosmos 2.5 논문에서 사용된 메트릭
 
-### 1.1 PAIBench-Transfer (Physical AI Benchmark)
+> 논문: "World Simulation with Video Foundation Models for Physical AI" (arXiv: 2511.00062), NVIDIA 88명 저자
 
-NVIDIA가 Cosmos 모델 평가를 위해 사용하는 자체 벤치마크. Transfer 모델의 control signal 충실도를 측정한다.
+### 1.1 PAI-Bench (Physical AI Bench) — CVPR 2026 Accepted
+
+NVIDIA가 Cosmos 모델 평가를 위해 개발한 전용 벤치마크 ([arXiv:2512.01989](https://arxiv.org/abs/2512.01989), [GitHub](https://github.com/SHI-Labs/physical-ai-bench)). 3가지 트랙으로 구성:
+
+| 트랙 | 설명 |
+|------|------|
+| **PAI-Bench-G (Generation)** | 비디오 생성 모델 평가. Quality Score (VBench 기반 8개 T2V/I2V 메트릭) + Domain Score (Qwen3-VL-235B MLLM-as-Judge로 물리적 그럴듯함 검증) |
+| **PAI-Bench-C (Conditional Control)** | Transfer 모델의 멀티모달 제어 신호 충실도, 시각적 품질, 생성 다양성 평가 |
+| **PAI-Bench-U (Understanding)** | MLLM의 물리적 상식 및 체현 추론 평가 |
+
+> **핵심 발견**: Domain Score가 Quality Score보다 ~10점 낮음 → 시각적 품질이 물리적 그럴듯함을 보장하지 않음
+
+#### PAI-Bench-Transfer (Control 충실도)
+
+Transfer 모델의 control signal 충실도를 측정한다.
 
 | 메트릭 | 설명 | 방향 | Transfer1-7B | Transfer2.5-2B |
 |--------|------|------|-------------|----------------|
@@ -32,8 +46,24 @@ NVIDIA가 Cosmos 모델 평가를 위해 사용하는 자체 벤치마크. Trans
 - 장기 비디오 생성 시 **에러 누적(error accumulation)** 을 측정
 - Autoregressive rollout 시 시간이 지남에 따라 품질이 얼마나 저하되는지를 DOVER 점수의 상대적 변화로 측정
 - Transfer2.5는 4가지 control modality(edge/blur/depth/segmentation) 모두에서 Transfer1-7B 대비 낮은 에러 누적을 보임
+- Closed-loop simulation 및 RL 태스크에서 핵심적 — autoregressive chunked 비디오 모델의 주요 실패 모드를 다룸
 
-### 1.3 Diversity-LPIPS
+### 1.3 VideoAlign Reward Model
+
+RLHF 스타일 VLM 기반 보상 모델. 후훈련(post-training) 시 사용하며 3가지 차원 평가:
+- **Text Alignment**: 비디오가 텍스트 프롬프트와 얼마나 잘 일치하는지
+- **Motion Quality**: 시간적 일관성과 사실적 모션
+- **Visual Quality**: 프레임별 시각적 품질
+
+> 훈련 시 입력당 8개 출력 생성 (20 diffusion step), GRPO 스타일 정규화로 advantage 계산
+
+### 1.4 Physics Alignment Metrics (PhysX / Isaac Sim)
+
+NVIDIA PhysX 및 Isaac Sim을 사용한 물리 정합성 평가:
+- **8가지 통제된 시나리오**: 중력(gravity), 충돌(collision), 토크(torque), 관성(inertia) 테스트
+- 표준 비디오 생성 벤치마크를 넘어서는 **월드 모델 전용 물리 메트릭**
+
+### 1.5 Diversity-LPIPS
 
 - 동일 제어 입력에 다른 텍스트 프롬프트를 사용했을 때 생성 결과의 다양성을 측정
 - LPIPS(Learned Perceptual Image Patch Similarity) 기반
@@ -200,7 +230,13 @@ NVIDIA가 Cosmos 모델 평가를 위해 사용하는 자체 벤치마크. Trans
 - 전역적 씬 통합 품질 측정
 - 전체적인 3D 일관성 평가
 
-### 4.6 Reprojection Error
+### 4.6 Sampson Error
+
+- 에피폴라 기하학 일관성 측정 (뷰 간)
+- Cosmos 1.0 평가 프레임워크에서 사용, Cosmos 2.5에도 적용
+- Camera Pose Estimation Success Rate와 함께 사용하여 다시점 영상의 기하학적 일관성 검증
+
+### 4.7 Reprojection Error
 
 - 다시점 영상 간 대응점의 재투영 오류
 - NVIDIA Cosmos 논문에서 자율주행 multi-view 평가에 사용
@@ -217,7 +253,12 @@ NVIDIA가 Cosmos 모델 평가를 위해 사용하는 자체 벤치마크. Trans
 - 객체가 프레임 간에 기하학적 일관성을 유지하는지 측정
 - 3D Ground Truth 없이 multi-view 일관성을 간접적으로 평가
 
-### 4.9 Depth Consistency
+### 4.10 Camera Pose Estimation Success Rate
+
+- 생성된 multi-view 비디오가 기하학적으로 일관된 카메라 포즈를 가지는지 검증
+- Cosmos 평가 프레임워크에서 Sampson Error와 함께 사용
+
+### 4.11 Depth Consistency
 
 - 여러 시점에서 추정된 깊이 맵의 일관성
 - Scale-invariant depth RMSE (si-RMSE) 등 사용
@@ -351,7 +392,17 @@ World model의 실질적 유용성을 downstream task 성능으로 평가하는 
 - 생성된 영상에서 LATR로 차선 탐지
 - F1 Score, mIoU 등으로 평가
 
-### 8.4 Action Policy MSE
+### 8.4 DreamGen Benchmark
+
+- 합성 VLA(Vision-Language-Action) 훈련 데이터 품질 평가
+- Instruction-following 점수 및 일반화 능력 측정 (미지의 객체, 새로운 행동, 새 환경)
+
+### 8.5 Human Preference Evaluation
+
+- 인간 선호도 기반 비교 평가
+- Cosmos-Predict2.5-2B는 훨씬 큰 모델(Wan2.2-5B, Wan2.1-14B)과 비슷한 인간 선호도 달성 (60-85.7% 작은 모델임에도)
+
+### 8.6 Action Policy MSE
 
 - 레포 내 `eval.py`에 구현
 - 로봇 액션 정책의 trajectory 기반 MSE 계산
@@ -410,6 +461,25 @@ Cosmos Transfer 2.5 출력을 포괄적으로 평가하기 위한 권장 메트�
 
 ---
 
+---
+
+## 10. 전체 메트릭 요약 테이블
+
+| 카테고리 | 메트릭 |
+|----------|--------|
+| **전체 품질** | PAI-Bench Quality Score, PAI-Bench Domain Score |
+| **이미지 품질** | FID, PSNR, SSIM, LPIPS |
+| **비디오 품질** | FVD, RNDS, DOVER |
+| **Temporal Consistency** | RNDS, VideoAlign (motion quality), Error Accumulation Curves, VBench Temporal Flickering/Motion Smoothness/Subject Consistency, WCS, Warping Error |
+| **Multi-View / 3D Consistency** | MEt3R, Sampson Error, Reprojection Error, Pose Estimation Success Rate, PSNR/SSIM/LPIPS (view synthesis), MVCS, 3DCS |
+| **Physics Alignment** | PhysX/Isaac Sim 시나리오 (gravity, collision, torque, inertia), WorldModelBench Physical Adherence |
+| **Control 충실도** | SSIM (blur), F1 (edge), si-RMSE (depth), mIoU (seg) |
+| **Reward Model** | VideoAlign (text alignment, motion quality, visual quality) |
+| **Downstream Tasks** | BEVFormer mAP/NDS, LATR F1/mIoU, Robot Policy Success Rate, DreamGen, Human Preference |
+| **World Model 전용** | WorldModelBench, WCS, PAI-Bench Domain Score, VBench-2.0 Physics/Commonsense |
+
+---
+
 ## 참고 자료
 
 - [Cosmos 2.5 Paper (arXiv:2511.00062)](https://arxiv.org/abs/2511.00062)
@@ -423,3 +493,9 @@ Cosmos Transfer 2.5 출력을 포괄적으로 평가하기 위한 권장 메트�
 - [Cosmos Cookbook (GitHub)](https://github.com/nvidia-cosmos/cosmos-cookbook)
 - [NVIDIA Cosmos HuggingFace Blog](https://huggingface.co/blog/nvidia/cosmos-predict-and-transfer2-5)
 - [Emergent Mind — Cosmos Transfer 2.5](https://www.emergentmind.com/topics/cosmos-transfer2-5)
+- [PAI-Bench Paper (arXiv:2512.01989)](https://arxiv.org/abs/2512.01989)
+- [PAI-Bench GitHub](https://github.com/SHI-Labs/physical-ai-bench)
+- [VideoGPA — Geometry Priors for 3D-Consistent Video](https://arxiv.org/html/2601.23286)
+- [Epipolar Geometry Improves Video Generation](https://arxiv.org/pdf/2510.21615)
+- [PRISM — Pose-aware NVS Evaluation](https://arxiv.org/html/2511.12675)
+- [SV4D 2.0 — Multi-View Video Diffusion](https://openaccess.thecvf.com/content/ICCV2025/papers/Yao_SV4D_2.0_Enhancing_Spatio-Temporal_Consistency_in_Multi-View_Video_Diffusion_for_ICCV_2025_paper.pdf)
